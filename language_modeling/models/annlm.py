@@ -1,5 +1,8 @@
 import torch
 from bidict import bidict
+from alive_progress import alive_bar as aliveBar
+
+from language_modeling.utils import annlm_dataset
 
 class AnnLanguageModel(torch.nn.Module):
 	def __init__(self, vocab : bidict, pretrainedEmbeddings : torch.Tensor, contextSizePrev : int = 5, contextSizeNext : int = 0, embeddingSize : int = 300, activation : str = "tanh") -> None:
@@ -26,6 +29,8 @@ class AnnLanguageModel(torch.nn.Module):
 			self.activation = torch.nn.ReLU()
 		assert self.activation is not None
 
+		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 	def forward(self, x : torch.Tensor):
 		"""
 		x is of shape (batchSize, contextSizePrev + contextSizeNext)
@@ -43,3 +48,33 @@ class AnnLanguageModel(torch.nn.Module):
 		x = self.hidden2(embedding) # (batchSize, vocabSize)
 
 		return self.softmax(x), embedding
+	
+	def train(self, trainDataset : annlm_dataset, 
+		   	  valDataset : annlm_dataset, 
+			  epochs : int = 10, 
+			  verbose : bool = True, 
+			  batchSize : int = 32, 
+			  learningRate : float = 0.001, 
+			  retrain : bool = False) -> None:
+		self.to(self.device)
+		
+		trainLoader = torch.utils.data.DataLoader(trainDataset, batch_size=batchSize, shuffle=True)
+		optimizer = torch.optim.Adam(self.parameters(), lr=learningRate)
+		criterion = torch.nn.CrossEntropyLoss()
+
+		for epoch in range(epochs):
+			with aliveBar(len(trainLoader), title=f"Epoch {epoch}") as bar:
+				for i, (x, y) in enumerate(trainLoader):
+					x = x.to(self.device)
+					y = y.to(self.device)
+
+					optimizer.zero_grad()
+					output, _ = self(x)
+					loss = criterion(output, y)
+					loss.backward()
+					optimizer.step()
+
+					bar()
+				
+			print(f"Epoch {epoch} completed.")
+		return

@@ -16,7 +16,7 @@ class AnnLMDataset(torch.utils.data.Dataset):
 	
 	def __len__(self) -> int:
 		return len(self.tokens)
-	
+
 	def _getPrevContext_(self, index : int) -> list[int]:
 		prevContext = [self.vocabulary[PAD_TOKEN]] * self.contextSizePrev
 
