@@ -21,14 +21,14 @@ class Tokenizer:
 			self.vocabulary[word] = self.vocabSize
 			self.vocabSize += 1
 
-	def getTokens(self) -> list[list[str]]:
+	def getTokens(self, putEos : bool = True) -> list[list[str]]:
 		"""
 		returns a list of tokenized sentences.
 		"""
 		text = self.readText()
 
 		sentences = nltk.sent_tokenize(text)
-		tokens = [nltk.word_tokenize(sentence) + [EOS_TOKEN] for sentence in sentences]
+		tokens = [nltk.word_tokenize(sentence) + ([EOS_TOKEN] if putEos else []) for sentence in sentences]
 
 		uniqueWords = set(list(chain(*tokens)))
 		for word in uniqueWords:

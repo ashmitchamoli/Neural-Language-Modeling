@@ -2,14 +2,15 @@ import torch
 from bidict import bidict
 from alive_progress import alive_bar as aliveBar
 
-from language_modeling.utils import annlm_dataset
+from language_modeling.utils import AnnLMDataset
 
 class AnnLanguageModel(torch.nn.Module):
-	def __init__(self, vocab : bidict, pretrainedEmbeddings : torch.Tensor, contextSizePrev : int = 5, contextSizeNext : int = 0, embeddingSize : int = 300, activation : str = "tanh") -> None:
+	def __init__(self, trainDataset : AnnLMDataset, pretrainedEmbeddings : torch.Tensor, contextSizePrev : int = 5, contextSizeNext : int = 0, embeddingSize : int = 300, activation : str = "tanh") -> None:
 		super.__init__()
 
-		self.vocab = vocab
-		self.vocabSize = len(vocab)
+		self.trainDataset = trainDataset
+		self.vocabulary = self.trainDataset.vocabulary
+		self.vocabSize = len(self.vocabulary)
 		self.pretrainedEmbeddings = pretrainedEmbeddings
 		self.pretrainedEmbeddingSize = pretrainedEmbeddings.shape[1]
 		self.contextSizePrev = contextSizePrev
@@ -49,8 +50,7 @@ class AnnLanguageModel(torch.nn.Module):
 
 		return self.softmax(x), embedding
 	
-	def train(self, trainDataset : annlm_dataset, 
-		   	  valDataset : annlm_dataset, 
+	def train(self, valDataset : AnnLMDataset, 
 			  epochs : int = 10, 
 			  verbose : bool = True, 
 			  batchSize : int = 32, 
@@ -58,7 +58,7 @@ class AnnLanguageModel(torch.nn.Module):
 			  retrain : bool = False) -> None:
 		self.to(self.device)
 		
-		trainLoader = torch.utils.data.DataLoader(trainDataset, batch_size=batchSize, shuffle=True)
+		trainLoader = torch.utils.data.DataLoader(self.trainDataset, batch_size=batchSize, shuffle=True)
 		optimizer = torch.optim.Adam(self.parameters(), lr=learningRate)
 		criterion = torch.nn.CrossEntropyLoss()
 

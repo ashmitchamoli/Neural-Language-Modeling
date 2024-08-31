@@ -1,7 +1,12 @@
 from language_modeling.models import AnnLanguageModel
 from language_modeling.utils import Tokenizer, AnnLMDataset
-from sklearn.model_selection import train_test_split
 
-tokenizer = Tokenizer("data/Auguste_Maqueture.txt")
-tokens = tokenizer.getTokens()
+trainTokens = Tokenizer("data/Auguste_Maquet/train.txt").getTokens()
+valTokens = Tokenizer("data/Auguste_Maquet/val.txt").getTokens()
+testTokens = Tokenizer("data/Auguste_Maquet/test.txt").getTokens()
 
+trainDataset = AnnLMDataset(trainTokens)
+valDataset = AnnLMDataset(valTokens)
+testDataset = AnnLMDataset(testTokens)
+
+model = AnnLanguageModel(vocab=trainDataset.vocabulary)
