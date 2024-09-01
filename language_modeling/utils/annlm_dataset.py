@@ -6,7 +6,7 @@ from language_modeling.config import PAD_TOKEN, EOS_TOKEN, UNK_TOKEN
 
 class AnnLMDataset(torch.utils.data.Dataset):
 	def __init__(self, tokens : list[list[str]], vocabulary : bidict, contextSizePrev : int = 5, contextSizeNext : int = 0) -> None:
-		super.__init__()
+		super().__init__()
 
 		self.tokens = list(chain(*tokens))
 		self.vocabulary = vocabulary

@@ -2,7 +2,7 @@ from language_modeling.utils import Tokenizer
 from sklearn.model_selection import train_test_split
 
 tokenizer = Tokenizer("data/Auguste_Maquet.txt")
-tokens = tokenizer.getTokens(putEos=False)
+tokens, vocab = tokenizer.getTokens(putEos=False)
 
 trainRatio = 0.7
 testRatio = 0.15

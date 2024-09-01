@@ -21,10 +21,13 @@ class Tokenizer:
 			self.vocabulary[word] = self.vocabSize
 			self.vocabSize += 1
 
-	def getTokens(self, putEos : bool = True) -> list[list[str]]:
+	def getTokens(self, putEos : bool = True, replaceUnk : bool = False) -> tuple[list[list[str]], bidict]:
 		"""
+			:param replaceUnk: if true, replaces all infrequent words with UNK_TOKEN
+
 		returns a list of tokenized sentences.
 		"""
+		self.vocabulary = bidict()
 		text = self.readText()
 
 		sentences = nltk.sent_tokenize(text)
@@ -36,4 +39,4 @@ class Tokenizer:
 		self.updateVocab(PAD_TOKEN)
 		self.updateVocab(UNK_TOKEN)
 
-		return tokens
+		return tokens, self.vocabulary
