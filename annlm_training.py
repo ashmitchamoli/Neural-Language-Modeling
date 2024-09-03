@@ -1,20 +1,16 @@
 import torch
+import pickle as pkl
 from bidict import bidict
 from gensim.models import KeyedVectors
-from sklearn.model_selection import train_test_split
 
 from language_modeling.models import AnnLanguageModel
-from language_modeling.utils import Tokenizer, AnnLMDataset
+from language_modeling.utils import AnnLanguageModelDataset
 from language_modeling.config import PAD_TOKEN, UNK_TOKEN
 
-tokens, vocab = Tokenizer("data/Auguste_Maquet/Auguste_Maquet.txt").getTokens()
+vocab, trainTokens, valTokens, testTokens = pkl.load(open("data/Auguste_Maquet/data_split.pkl", "rb"))
 
-trainTokens, testTokens = train_test_split(tokens, test_size=(10000 / len(tokens)))
-trainTokens, valTokens = train_test_split(trainTokens, test_size=(5000 / len(trainTokens)))
-
-trainDataset = AnnLMDataset(trainTokens, vocab, 5, 0)
-valDataset = AnnLMDataset(valTokens, vocab, 5, 0)
-testDataset = AnnLMDataset(testTokens, vocab, 5, 0)
+prevContextSize = 5
+nextContextSize = 5
 
 def loadPretrained(path : str, vocab : bidict) -> torch.Tensor:
 	w2vEmbeddings : KeyedVectors = KeyedVectors.load_word2vec_format(path, binary=False)
@@ -28,10 +24,13 @@ def loadPretrained(path : str, vocab : bidict) -> torch.Tensor:
 	return out
 
 pretrainedW2v = loadPretrained("data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt", vocab)
+trainDataset = AnnLanguageModelDataset(trainTokens, vocab, prevContextSize, nextContextSize)
+valDataset = AnnLanguageModelDataset(valTokens, vocab, prevContextSize, nextContextSize)
+testDataset = AnnLanguageModelDataset(testTokens, vocab, prevContextSize, nextContextSize)
 model = AnnLanguageModel(trainDataset=trainDataset,
 						 pretrainedEmbeddings=pretrainedW2v,
-						 contextSizePrev=5,
-						 contextSizeNext=0,
+						 contextSizePrev=prevContextSize,
+						 contextSizeNext=nextContextSize,
 						 embeddingSize=300,
 						 activation="tanh")
-model.train(valDataset=valDataset)
+model.train(valDataset=valDataset, learningRate=0.001, batchSize=128)

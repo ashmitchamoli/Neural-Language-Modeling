@@ -4,7 +4,7 @@ from itertools import chain
 
 from language_modeling.config import PAD_TOKEN, EOS_TOKEN, UNK_TOKEN
 
-class AnnLMDataset(torch.utils.data.Dataset):
+class AnnLanguageModelDataset(torch.utils.data.Dataset):
 	def __init__(self, tokens : list[list[str]], vocabulary : bidict, contextSizePrev : int = 5, contextSizeNext : int = 0) -> None:
 		super().__init__()
 
@@ -40,6 +40,7 @@ class AnnLMDataset(torch.utils.data.Dataset):
 			if index + i >= len(self.tokens):
 				break
 			if self.tokens[index + i] == EOS_TOKEN:
+				nextContext[i - 1] = self.vocabulary[EOS_TOKEN]
 				break
 
 			if self.tokens[index + i] not in self.vocabulary:

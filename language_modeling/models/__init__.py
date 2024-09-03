@@ -1,1 +1,2 @@
 from language_modeling.models.annlm import AnnLanguageModel
+from language_modeling.models.lstmlm import LstmLanguageModel

@@ -1,30 +1,25 @@
 import torch
+import os
 from typing import Literal
 from alive_progress import alive_bar as aliveBar
 
-from language_modeling.utils import AnnLMDataset
+from language_modeling.utils import AnnLanguageModelDataset
 from language_modeling.config import ANN_MODEL_PATH
+from language_modeling import BaseLanguageModel
 
-class AnnLanguageModel(torch.nn.Module):
-	def __init__(self, trainDataset : AnnLMDataset, pretrainedEmbeddings : torch.Tensor = None, fineTunePretrained : bool = False, contextSizePrev : int = 5, contextSizeNext : int = 0, embeddingSize : int = 300, activation : str = "tanh") -> None:
+class AnnLanguageModel(BaseLanguageModel):
+	def __init__(self, trainDataset : AnnLanguageModelDataset, 
+			  	 pretrainedEmbeddings : torch.Tensor = None, 
+				 fineTunePretrained : bool = False, 
+				 contextSizePrev : int = 5, 
+				 contextSizeNext : int = 0, 
+				 embeddingSize : int = 300, 
+				 activation : str = "tanh") -> None:
 		"""
 			`pretrainedEmbeddings` are assumed to be indexed with the same vocabulary as `trainDataset`.
 			If set to `None`, the pretrained embeddings will be randomly initialized with `torch.nn.Embedding`.
 		"""
-		super().__init__()
-
-		self.trainDataset = trainDataset
-		self.vocabulary = self.trainDataset.vocabulary
-		self.vocabSize = len(self.vocabulary)
-
-		self.pretrainedEmbeddings = None
-		self.pretrainedEmbeddingSize = None
-		if pretrainedEmbeddings is not None:
-			self.pretrainedEmbeddings = torch.nn.Embedding.from_pretrained(pretrainedEmbeddings, freeze=(not fineTunePretrained))
-			self.pretrainedEmbeddingSize = pretrainedEmbeddings.size()[1]
-		else:
-			self.pretrainedEmbeddings = torch.nn.Embedding(self.vocabSize, 512)
-			self.pretrainedEmbeddingSize = 512
+		super().__init__(trainDataset, pretrainedEmbeddings, fineTunePretrained)
 
 		self.contextSizePrev = contextSizePrev
 		self.contextSizeNext = contextSizeNext
@@ -45,11 +40,8 @@ class AnnLanguageModel(torch.nn.Module):
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	def _getEmbeddings_(self, indices : torch.Tensor) -> torch.Tensor:
-		if isinstance(self.pretrainedEmbeddings, torch.nn.Embedding):
-			return self.pretrainedEmbeddings(indices)
-		
-		return self.pretrainedEmbeddings[indices]
+		self._modelSavePath_ = ANN_MODEL_PATH
+		self._modelName_ = f"nnlm_{self.activation}_{self.contextSizeNext}_{self.contextSizePrev}_{self.embeddingSize}_{self.pretrainedEmbeddingSize}"
 
 	def forward(self, x : torch.Tensor):
 		"""
@@ -69,14 +61,23 @@ class AnnLanguageModel(torch.nn.Module):
 
 		return self.softmax(x), embedding
 	
-	def train(self, valDataset : AnnLMDataset, 
-			  epochs : int = 10, 
+	def train(self, valDataset : AnnLanguageModelDataset, 
+			  epochs : int = 5, 
 			  verbose : bool = True, 
 			  batchSize : int = 64, 
 			  learningRate : float = 0.005, 
 			  retrain : bool = False,
 			  optimizerType : Literal["adam", "sgd", "rmsprop"] = "adam") -> None:
 		self.to(self.device)
+
+		if not retrain:
+			if self._loadModel_(os.path.join(self._modelSavePath_, self._modelName_)):
+				if verbose:
+					print(f"Loaded model from {os.path.join(self._modelSavePath_, self._modelName_)}")
+				return
+			else:
+				if verbose:
+					print(f"Model checkpoint not found. Training model from scratch...")
 		
 		trainLoader = torch.utils.data.DataLoader(self.trainDataset, batch_size=batchSize, shuffle=True)
 		optimizer = None
@@ -109,11 +110,11 @@ class AnnLanguageModel(torch.nn.Module):
 			if verbose:	
 				print(f"Epoch {epoch} completed. log(Perplexity): {avgLoss:.3f}")
 		
-		self.saveModel(ANN_MODEL_PATH)
+		self._saveModel_(os.path.join(self._modelSavePath_, self._modelName_ + ".pth"))
 		if verbose:
 			print("Model saved.")
 
 		return
 
-	def saveModel(self, path : str) -> None:
-		torch.save(self.state_dict(), path)
+	def getPerplexity(self, testTokens : list[list[str]]) -> float:
+		pass
