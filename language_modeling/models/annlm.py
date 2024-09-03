@@ -1,5 +1,5 @@
 import torch
-from bidict import bidict
+from typing import Literal
 from alive_progress import alive_bar as aliveBar
 
 from language_modeling.utils import AnnLMDataset
@@ -45,7 +45,7 @@ class AnnLanguageModel(torch.nn.Module):
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-	def _getEmbedding_(self, indices : torch.Tensor) -> torch.Tensor:
+	def _getEmbeddings_(self, indices : torch.Tensor) -> torch.Tensor:
 		if isinstance(self.pretrainedEmbeddings, torch.nn.Embedding):
 			return self.pretrainedEmbeddings(indices)
 		
@@ -60,7 +60,7 @@ class AnnLanguageModel(torch.nn.Module):
 			next word probability distribution (batchSize, vocabSize)
 			embedding of this word (batchSize, embeddingSize)
 		"""
-		x = self._getEmbedding_(x) # (batchSize, contextSizePrev + contextSizeNext, pretrainedEmbeddingSize)
+		x = self._getEmbeddings_(x) # (batchSize, contextSizePrev + contextSizeNext, pretrainedEmbeddingSize)
 		x = x.view(-1, (self.contextSizePrev + self.contextSizeNext) * self.pretrainedEmbeddingSize) # (batchSize, (contextSizePrev + contextSizeNext) * pretrainedEmbeddingSize)
 
 		x = self.hidden1(x) # (batchSize, embeddingSize)
@@ -72,16 +72,23 @@ class AnnLanguageModel(torch.nn.Module):
 	def train(self, valDataset : AnnLMDataset, 
 			  epochs : int = 10, 
 			  verbose : bool = True, 
-			  batchSize : int = 32, 
-			  learningRate : float = 0.001, 
-			  retrain : bool = False) -> None:
+			  batchSize : int = 64, 
+			  learningRate : float = 0.005, 
+			  retrain : bool = False,
+			  optimizerType : Literal["adam", "sgd", "rmsprop"] = "adam") -> None:
 		self.to(self.device)
 		
 		trainLoader = torch.utils.data.DataLoader(self.trainDataset, batch_size=batchSize, shuffle=True)
-		optimizer = torch.optim.Adam(self.parameters(), lr=learningRate)
+		optimizer = None
+		if optimizerType == "adam":
+			optimizer = torch.optim.Adam(self.parameters(), lr=learningRate)
+		else:
+			raise ValueError("Unknown optimizer.")
+		
 		criterion = torch.nn.CrossEntropyLoss()
 
 		for epoch in range(epochs):
+			totalLoss = 0
 			with aliveBar(len(trainLoader), title=f"Epoch {epoch}") as bar:
 				for i, (x, y) in enumerate(trainLoader):
 					x = x.to(self.device)
@@ -93,10 +100,14 @@ class AnnLanguageModel(torch.nn.Module):
 					loss.backward()
 					optimizer.step()
 
-					bar()
+					totalLoss += loss.item()
+					bar.text(f"\nAvg Loss: {totalLoss/(i+1):.3f}")
 
+					bar()
+			
+			avgLoss = totalLoss / len(trainLoader)
 			if verbose:	
-				print(f"Epoch {epoch} completed.")
+				print(f"Epoch {epoch} completed. log(Perplexity): {avgLoss:.3f}")
 		
 		self.saveModel(ANN_MODEL_PATH)
 		if verbose:
