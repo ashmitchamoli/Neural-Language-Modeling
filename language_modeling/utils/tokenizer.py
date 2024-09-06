@@ -21,14 +21,17 @@ class Tokenizer:
 			self.vocabulary[word] = self.vocabSize
 			self.vocabSize += 1
 
-	def getTokens(self, putEos : bool = True, replaceUnk : bool = False) -> tuple[list[list[str]], bidict]:
+	def getTokens(self, putEos : bool = True, fromString : bool = False, text : str = None) -> tuple[list[list[str]], bidict]:
 		"""
 			:param replaceUnk: if true, replaces all infrequent words with UNK_TOKEN
 
 		returns a list of tokenized sentences.
 		"""
 		self.vocabulary = bidict()
-		text = self.readText()
+		if not fromString:
+			text = self.readText()
+		elif text is None:
+			raise ValueError("text must be provided if fromString is True")
 
 		sentences = nltk.sent_tokenize(text)
 		tokens = [nltk.word_tokenize(sentence) + ([EOS_TOKEN] if putEos else []) for sentence in sentences]

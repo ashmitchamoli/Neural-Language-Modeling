@@ -9,8 +9,16 @@ from language_modeling.config import PAD_TOKEN, UNK_TOKEN
 
 vocab, trainTokens, valTokens, testTokens = pkl.load(open("data/Auguste_Maquet/data_split.pkl", "rb"))
 
-prevContextSize = 5
-nextContextSize = 5
+trainingConfig = {
+	"prevContextSize": 5,
+	"nextContextSize": 0,
+	"embeddingSize": 512,
+	"activation": "tanh",
+	"droupout": 0.75,
+	"hiddenLayerSizes": [1024],
+	"fineTunePretrained": False
+}
+
 
 def loadPretrained(path : str, vocab : bidict) -> torch.Tensor:
 	w2vEmbeddings : KeyedVectors = KeyedVectors.load_word2vec_format(path, binary=False)
@@ -24,13 +32,12 @@ def loadPretrained(path : str, vocab : bidict) -> torch.Tensor:
 	return out
 
 pretrainedW2v = loadPretrained("data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt", vocab)
-trainDataset = AnnLanguageModelDataset(trainTokens, vocab, prevContextSize, nextContextSize)
-valDataset = AnnLanguageModelDataset(valTokens, vocab, prevContextSize, nextContextSize)
-testDataset = AnnLanguageModelDataset(testTokens, vocab, prevContextSize, nextContextSize)
-model = AnnLanguageModel(trainDataset=trainDataset,
+trainDataset = AnnLanguageModelDataset(trainTokens, vocab, trainingConfig["prevContextSize"], trainingConfig["nextContextSize"])
+valDataset = AnnLanguageModelDataset(valTokens, vocab, trainingConfig["prevContextSize"], trainingConfig["nextContextSize"])
+testDataset = AnnLanguageModelDataset(testTokens, vocab, trainingConfig["prevContextSize"], trainingConfig["nextContextSize"])
+model = AnnLanguageModel(vocabulary=vocab,
 						 pretrainedEmbeddings=pretrainedW2v,
-						 contextSizePrev=prevContextSize,
-						 contextSizeNext=nextContextSize,
-						 embeddingSize=300,
-						 activation="tanh")
-model.train(valDataset=valDataset, learningRate=0.001, batchSize=128)
+						 **trainingConfig)
+batchSize = 256
+trainLoader = torch.utils.data.DataLoader(trainDataset, batch_size=batchSize, shuffle=True)
+model.train(trainLoader=trainLoader, learningRate=0.001, batchSize=batchSize)

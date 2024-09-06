@@ -25,8 +25,9 @@ trainDataset = LstmLanguageModelDataset(trainTokens, vocab)
 valDataset = LstmLanguageModelDataset(valTokens, vocab)
 testDataset = LstmLanguageModelDataset(testTokens, vocab)
 
-model = LstmLanguageModel(trainDataset=trainDataset,
+model = LstmLanguageModel(vocabulary=vocab,
 						  pretrainedEmbeddings=pretrainedW2v,
 						  hiddenEmbeddingSize=300,
 						  activation="tanh")
-model.train(valDataset=valDataset, learningRate=0.001, batchSize=16)
+trainLoader = torch.utils.data.DataLoader(trainDataset, batch_size=8, shuffle=True, collate_fn=trainDataset._customCollate_)
+model.train(trainLoader, learningRate=0.005, batchSize=8)

@@ -1,2 +1,3 @@
 __pycache__
-model_checkpoints/
+model_checkpoints
+data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt

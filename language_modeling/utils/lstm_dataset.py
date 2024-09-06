@@ -27,4 +27,4 @@ class LstmLanguageModelDataset(torch.utils.data.Dataset):
 		X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
 		y = torch.nn.utils.rnn.pad_sequence(y, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
 
-		return X, y
+		return X, y.view(-1)
