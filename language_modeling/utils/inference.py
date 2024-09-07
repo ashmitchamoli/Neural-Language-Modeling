@@ -1,4 +1,5 @@
 import torch
+import sys
 
 from language_modeling import BaseLanguageModel
 from language_modeling.utils import Tokenizer
@@ -26,11 +27,15 @@ class Inferencer:
 		currentTokenIndex = -1
 		contextTensor = self.getTokenIndices(context)
 		while currentTokenIndex != self.vocabulary[EOS_TOKEN]:
-			currentTokenIndex = self.generateNextWord(contextTensor)
+			currentTokenIndex = self.generateNextWordIndex(contextTensor)
 			
 			# expand current context tensor
 			contextTensor = torch.cat([contextTensor, torch.tensor([currentTokenIndex])])
 			context.append(self.vocabulary.inverse[currentTokenIndex])
+
+			print(context[-1], end=" ")
+			sys.stdout.flush()
+			
 		
 		return " ".join(context)
 

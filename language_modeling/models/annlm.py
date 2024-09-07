@@ -38,24 +38,22 @@ class AnnLanguageModel(BaseLanguageModel):
 			self.activation = torch.nn.ReLU()
 		assert self.activation is not None
 
-		self.hidden1 = torch.nn.Linear((self.contextSizePrev + self.contextSizeNext) * self.pretrainedEmbeddingSize, embeddingSize)
-		self.hidden2 = None
 		self.dropoutLayer = torch.nn.Dropout(droupout)
-
 		self.hiddenLayers = torch.nn.Sequential()
 		if hiddenLayerSizes is not None and len(hiddenLayerSizes) > 0:
-			self.hiddenLayers.append(torch.nn.Linear(embeddingSize, hiddenLayerSizes[0]))
+			self.hiddenLayers.append(torch.nn.Linear((self.contextSizePrev + self.contextSizeNext) * self.pretrainedEmbeddingSize, hiddenLayerSizes[0]))
 			for i in range(1, len(hiddenLayerSizes)):
-				self.hiddenLayers.append(torch.nn.Linear(hiddenLayerSizes[i - 1], hiddenLayerSizes[i]))
 				self.hiddenLayers.append(self.activation)
+				self.hiddenLayers.append(torch.nn.Linear(hiddenLayerSizes[i - 1], hiddenLayerSizes[i]))
 				if (i%3) == 0:
 					self.hiddenLayers.append(self.dropoutLayer)
-			self.hidden2 = torch.nn.Linear(hiddenLayerSizes[-1], self.vocabSize)
+			self.hiddenLayers.append(self.activation)
+			self.hiddenLayers.append(torch.nn.Linear(hiddenLayerSizes[-1], self.vocabSize))
 		else:
-			self.hidden2 = torch.nn.Linear(embeddingSize, self.vocabSize)
+			self.hiddenLayers.append(torch.nn.Linear((self.contextSizePrev + self.contextSizeNext) * self.pretrainedEmbeddingSize, self.vocabSize))
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-		self._modelSavePath_ = ANN_MODEL_PATH
+		self._modelSaveDir_ = ANN_MODEL_PATH
 		self._modelName_ = f"nnlm_{self.activation}_{self.contextSizeNext}_{self.contextSizePrev}_{self.embeddingSize}_{self.pretrainedEmbeddingSize}"
 
 	def forward(self, x : torch.Tensor):
@@ -70,13 +68,11 @@ class AnnLanguageModel(BaseLanguageModel):
 		x = self._getPretrainedEmbeddings_(x) # (batchSize, contextSizePrev + contextSizeNext, pretrainedEmbeddingSize)
 		x = x.view(-1, (self.contextSizePrev + self.contextSizeNext) * self.pretrainedEmbeddingSize) # (batchSize, (contextSizePrev + contextSizeNext) * pretrainedEmbeddingSize)
 
-		x = self.hidden1(x) # (batchSize, embeddingSize)
+		x = self.hiddenLayers(x) # (bachSize, vocabSize)
+		# x = self.softmax(x)
 		x = self.activation(x)
-		x = self.hiddenLayers(x)
-		x = self.dropoutLayer(x)
-		x = self.hidden2(x) # (batchSize, vocabSize)
 
-		return self.softmax(x), None
+		return x, None
 
 	def getNextWordDistribution(self, x : torch.Tensor) -> torch.Tensor:
 		"""
@@ -96,13 +92,14 @@ class AnnLanguageModel(BaseLanguageModel):
 			prevContextTensor = x[:, :self.contextSizePrev]
 		else:
 			prevContextTensor = torch.cat(
-				torch.full((x.size(0), self.contextSizePrev - x.size(1)), self.vocabulary[PAD_TOKEN]),
-				x,
+				[torch.full((x.size(0), self.contextSizePrev - x.size(1)), self.vocabulary[PAD_TOKEN]), x],
 				axis=1
 			)
-		
-		contextTensor = torch.cat(prevContextTensor, torch.full((x.size(0), self.contextSizeNext), self.vocabulary[PAD_TOKEN]))
-		
+
+		contextTensor = prevContextTensor
+		if self.contextSizeNext > 0:
+			contextTensor = torch.cat(prevContextTensor, torch.full((x.size(0), self.contextSizeNext), self.vocabulary[PAD_TOKEN]))
+	
 		with torch.no_grad():
 			nextWordDistribution, _ = self.forward(contextTensor)
 		

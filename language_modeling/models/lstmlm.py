@@ -51,7 +51,7 @@ class LstmLanguageModel(BaseLanguageModel):
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-		self._modelSavePath_ = LSTM_MODEL_PATH
+		self._modelSaveDir_ = LSTM_MODEL_PATH
 		self._modelName_ = f"lstmlm_{self.activation}_{self.hiddenEmbeddingSize}_{self.numLayers}_{self.dropout}_{self.bidirectional}"
 	
 	def forward1(self, x : torch.Tensor) -> torch.Tensor:
@@ -83,9 +83,9 @@ class LstmLanguageModel(BaseLanguageModel):
 	# 	self.to(self.device)
 
 	# 	if not retrain:
-	# 		if self._loadModel_(os.path.join(self._modelSavePath_, self._modelName_)):
+	# 		if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_)):
 	# 			if verbose:
-	# 				print(f"Loaded model from {os.path.join(self._modelSavePath_, self._modelName_)}")
+	# 				print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_)}")
 	# 			return
 	# 		else:
 	# 			if verbose:
@@ -124,7 +124,7 @@ class LstmLanguageModel(BaseLanguageModel):
 	# 		if verbose:	
 	# 			print(f"Epoch {epoch} completed. log(Perplexity): {avgLoss:.3f}")
 		
-	# 	self._saveModel_(os.path.join(self._modelSavePath_, self._modelName_ + ".pth"))
+	# 	self._saveModel_(os.path.join(self._modelSaveDir_, self._modelName_ + ".pth"))
 	# 	if verbose:
 	# 		print("Model saved.")
 

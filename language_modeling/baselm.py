@@ -22,7 +22,10 @@ class BaseLanguageModel(torch.nn.Module):
 		else:
 			self.pretrainedEmbeddings = torch.nn.Embedding(self.vocabSize, 512)
 			self.pretrainedEmbeddingSize = 512
-	
+
+		self._modelSaveDir_ = None
+		self._modelName_ = None
+
 	def _getPretrainedEmbeddings_(self, indices : torch.Tensor) -> torch.Tensor:
 		if isinstance(self.pretrainedEmbeddings, torch.nn.Embedding):
 			return self.pretrainedEmbeddings(indices)
@@ -37,7 +40,7 @@ class BaseLanguageModel(torch.nn.Module):
 	
 	def _loadModel_(self, path : str) -> bool:
 		if os.path.exists(path):
-			self.load_state_dict(torch.load(path))
+			self.load_state_dict(torch.load(path, weights_only=True))
 			return True
 		else:
 			return False
@@ -52,9 +55,9 @@ class BaseLanguageModel(torch.nn.Module):
 		self.to(self.device)
 
 		if not retrain:
-			if self._loadModel_(os.path.join(self._modelSavePath_, self._modelName_)):
+			if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_)):
 				if verbose:
-					print(f"Loaded model from {os.path.join(self._modelSavePath_, self._modelName_)}")
+					print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_)}")
 				return
 			else:
 				if verbose:
@@ -90,12 +93,18 @@ class BaseLanguageModel(torch.nn.Module):
 			if verbose:	
 				print(f"Epoch {epoch} completed. log(Perplexity): {avgLoss:.3f}")
 		
-		self._saveModel_(os.path.join(self._modelSavePath_, self._modelName_ + ".pth"))
+		self._saveModel_(os.path.join(self._modelSaveDir_, self._modelName_ + ".pth"))
 		if verbose:
 			print("Model saved.")
 
 		return
 	
+	def loadModelWeights(self) -> None:
+		if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')):
+			print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')}")
+		else:
+			print(f"Model checkpoint not found. Train the model from scratch.")
+
 	def getNextWordDistribution(self, x : torch.Tensor) -> torch.Tensor:
 		"""
 		:param x: (batchSize, context) or (context, ). `x` contains indices of context words.
