@@ -46,6 +46,7 @@ class BaseLanguageModel(torch.nn.Module):
 			return False
 		
 	def train(self, trainLoader : torch.utils.data.DataLoader, 
+		   	  valLoader : torch.utils.data.DataLoader = None,
 			  epochs : int = 5, 
 			  verbose : bool = True, 
 			  batchSize : int = 64, 
@@ -55,14 +56,14 @@ class BaseLanguageModel(torch.nn.Module):
 		self.to(self.device)
 
 		if not retrain:
-			if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_)):
+			if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')):
 				if verbose:
-					print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_)}")
+					print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')}")
 				return
 			else:
 				if verbose:
 					print(f"Model checkpoint not found. Training model from scratch...")
-		
+
 		optimizer = None
 		if optimizerType == "adam":
 			optimizer = torch.optim.Adam(self.parameters(), lr=learningRate)
@@ -90,12 +91,37 @@ class BaseLanguageModel(torch.nn.Module):
 					bar()
 			
 			avgLoss = totalLoss / len(trainLoader)
-			if verbose:	
-				print(f"Epoch {epoch} completed. log(Perplexity): {avgLoss:.3f}")
-		
+
+			if valLoader is not None:
+				valLoss = 0
+				valAcc = 0
+				with torch.no_grad():
+					with aliveBar(len(valLoader), title=f"Validation") as bar:
+						for x, y in valLoader:
+							x = x.to(self.device)
+							y = y.to(self.device)
+
+							output, _ = self(x)
+							loss = criterion(output, y)
+
+							valLoss += loss.item()
+							preds = torch.argmax(output, dim=1)
+							valAcc += torch.sum(preds == y).item() / len(y)
+
+							bar()
+
+				valLoss /= len(valLoader)
+				valAcc /= len(valLoader)
+
+			if verbose and valLoader is not None:
+				print(f"Epoch {epoch} completed. Training loss: {avgLoss:.3f} | Validation loss: {valLoss:.3f} | Validation acc: {valAcc:.3f}")
+			elif verbose:
+				print(f"Epoch {epoch} completed. Training loss: {avgLoss:.3f}")
+
 		self._saveModel_(os.path.join(self._modelSaveDir_, self._modelName_ + ".pth"))
 		if verbose:
 			print("Model saved.")
+
 
 		return
 	

@@ -14,9 +14,8 @@ class AnnLanguageModel(BaseLanguageModel):
 				 fineTunePretrained : bool = False, 
 				 contextSizePrev : int = 5, 
 				 contextSizeNext : int = 0, 
-				 embeddingSize : int = 300, 
 				 activation : Literal["tanh", "sigmoid", "relu"] = "relu",
-				 droupout : float = 0.75,
+				 droupout : float = 0.2,
 				 hiddenLayerSizes : Union[list[int], None] = None) -> None:
 		"""
 			`pretrainedEmbeddings` are assumed to be indexed with the same vocabulary as `trainDataset`.
@@ -26,7 +25,6 @@ class AnnLanguageModel(BaseLanguageModel):
 
 		self.contextSizePrev = contextSizePrev
 		self.contextSizeNext = contextSizeNext
-		self.embeddingSize = embeddingSize
 
 		self.softmax = torch.nn.Softmax(dim=1)
 		self.activation = None
@@ -54,7 +52,7 @@ class AnnLanguageModel(BaseLanguageModel):
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self._modelSaveDir_ = ANN_MODEL_PATH
-		self._modelName_ = f"nnlm_{self.activation}_{self.contextSizeNext}_{self.contextSizePrev}_{self.embeddingSize}_{self.pretrainedEmbeddingSize}"
+		self._modelName_ = f"nnlm_{self.activation}_{self.contextSizeNext}_{self.contextSizePrev}_{self.pretrainedEmbeddingSize}"
 
 	def forward(self, x : torch.Tensor):
 		"""
@@ -70,7 +68,6 @@ class AnnLanguageModel(BaseLanguageModel):
 
 		x = self.hiddenLayers(x) # (bachSize, vocabSize)
 		# x = self.softmax(x)
-		x = self.activation(x)
 
 		return x, None
 
@@ -82,26 +79,31 @@ class AnnLanguageModel(BaseLanguageModel):
 			(batchSize, vocabSize) or (vocabSize, )
 			The probability distribution for the next word.
 		"""
+		x = x.to(self.device)
+		self.to(self.device)
+
 		originalDim = x.ndim
-		if originalDim:
+		if originalDim == 1:
 			# make x of shape (1, context)
 			x = x.unsqueeze(0)
 
 		prevContextTensor = None
 		if (x.size(1) > self.contextSizePrev):
-			prevContextTensor = x[:, :self.contextSizePrev]
+			sentenceLength = x.size(1)
+			prevContextTensor = x[:, (sentenceLength - self.contextSizePrev):]
 		else:
 			prevContextTensor = torch.cat(
-				[torch.full((x.size(0), self.contextSizePrev - x.size(1)), self.vocabulary[PAD_TOKEN]), x],
+				[torch.full((x.size(0), self.contextSizePrev - x.size(1)), self.vocabulary[PAD_TOKEN], device=self.device), x],
 				axis=1
 			)
 
 		contextTensor = prevContextTensor
 		if self.contextSizeNext > 0:
-			contextTensor = torch.cat(prevContextTensor, torch.full((x.size(0), self.contextSizeNext), self.vocabulary[PAD_TOKEN]))
+			contextTensor = torch.cat(prevContextTensor, torch.full((x.size(0), self.contextSizeNext), self.vocabulary[PAD_TOKEN], device=self.device), axis=1)
 	
 		with torch.no_grad():
 			nextWordDistribution, _ = self.forward(contextTensor)
+			nextWordDistribution = self.softmax(nextWordDistribution)
 		
 		if originalDim == 1:
 			# return a tensor of shape (vocabSize, )

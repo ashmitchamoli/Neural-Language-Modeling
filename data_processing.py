@@ -7,8 +7,8 @@ tokenizer = Tokenizer("data/Auguste_Maquet/Auguste_Maquet.txt")
 tokens, vocab = tokenizer.getTokens()
 
 trainRatio = 0.70
-testRatio = 0.20
-valRatio = 0.10
+testRatio = 0.15
+valRatio = 0.15
 
 trainSet, tempSet = train_test_split(tokens, train_size=trainRatio)
 testSet, valSet = train_test_split(tempSet, train_size=testRatio/(testRatio + valRatio))
