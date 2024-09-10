@@ -1,3 +1,3 @@
 from language_modeling.utils.tokenizer import Tokenizer
-from language_modeling.utils.datasets import AnnLanguageModelDataset, LstmLanguageModelDataset
+from language_modeling.utils.datasets import AnnLanguageModelDataset, LstmLanguageModelDataset, TransformerLanguageModelDataset
 from language_modeling.utils.inference import Inferencer

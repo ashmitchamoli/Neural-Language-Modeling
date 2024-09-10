@@ -1,10 +1,7 @@
 import torch
-import os
 from bidict import bidict
 from typing import Literal, Union
-from alive_progress import alive_bar as aliveBar
 
-from language_modeling.utils import AnnLanguageModelDataset
 from language_modeling.config import ANN_MODEL_PATH, PAD_TOKEN
 from language_modeling import BaseLanguageModel
 
@@ -52,7 +49,7 @@ class AnnLanguageModel(BaseLanguageModel):
 
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 		self._modelSaveDir_ = ANN_MODEL_PATH
-		self._modelName_ = f"nnlm_{self.activation}_{self.contextSizeNext}_{self.contextSizePrev}_{self.pretrainedEmbeddingSize}"
+		self._modelName_ = f"nnlm_{self.activation}_{self.contextSizeNext}_{self.contextSizePrev}_{self.pretrainedEmbeddingSize}_{hiddenLayerSizes}"
 
 	def forward(self, x : torch.Tensor):
 		"""

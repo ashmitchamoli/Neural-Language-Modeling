@@ -72,12 +72,46 @@ class LstmLanguageModelDataset(torch.utils.data.Dataset):
 
 		encodedSentence = [self.vocabulary[word] for word in sentence]
 		
-		return torch.tensor(encodedSentence), torch.tensor(encodedSentence[1:])
+		return torch.tensor(encodedSentence[:-1]), torch.tensor(encodedSentence[1:])
 
-	def _customCollate_(self, batch : list[torch.Tensor]) -> torch.Tensor:
+	def customCollate(self, batch : list[torch.Tensor]) -> torch.Tensor:
 		X, y = zip(*batch)
 
 		X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
 		y = torch.nn.utils.rnn.pad_sequence(y, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
 
 		return X, y.view(-1)
+
+class TransformerLanguageModelDataset(torch.utils.data.Dataset):
+	def __init__(self, tokens : list[list[str]], vocabulary : bidict) -> None:
+		super().__init__()
+
+		self.tokens = tokens
+		self.vocabulary = vocabulary
+		self.vocabSize = len(vocabulary)
+
+		self.dataset = self._prepareDataset_(tokens, vocabulary)
+	
+	@staticmethod
+	def _prepareDataset_(tokens : list[list[str]], vocabulary : bidict) -> torch.utils.data.Dataset:
+		dataset = []
+		for sentence in tokens:
+			context = [vocabulary[PAD_TOKEN]]
+			for token in sentence:
+				dataset.append((torch.tensor(context + [vocabulary[PAD_TOKEN]]), torch.tensor(vocabulary[token])))
+				context = context + [vocabulary[token]]
+
+		return dataset
+	
+	def __len__(self) -> int:
+		return len(self.dataset)
+	
+	def __getitem__(self, index : int) -> tuple[torch.Tensor, torch.Tensor]:
+		return self.dataset[index]
+	
+	def customCollate(self, batch : list[torch.Tensor]) -> torch.Tensor:
+		X, y = zip(*batch)
+
+		X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
+		
+		return X, torch.stack(y)

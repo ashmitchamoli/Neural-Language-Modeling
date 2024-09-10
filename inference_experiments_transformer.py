@@ -1,11 +1,11 @@
-from language_modeling.models import LstmLanguageModel
+from language_modeling.models import TransformerLanguageModel
 from language_modeling.utils import Inferencer
 from preprocessing_scripts.pretrained_embeddings import loadPretrained
-from lstmlm_training import modelHyperparams, vocab, testTokens, trainTokens
+from transformerlm_training import modelHyperparams, vocab, testTokens, trainTokens
 
 if __name__ == "__main__":
 	pretrainedW2v = loadPretrained("data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt", vocab)
-	model = LstmLanguageModel(vocabulary=vocab,
+	model = TransformerLanguageModel(vocabulary=vocab,
 							  pretrainedEmbeddings=pretrainedW2v,
 							  **modelHyperparams)
 	model.loadModelWeights()

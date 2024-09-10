@@ -13,7 +13,7 @@ class Tokenizer:
 		self.numTokens = 0
 	
 	def readText(self) -> str:
-		with open(self.filePath, "r") as f:
+		with open(self.filePath, "r", encoding="utf-8") as f:
 			return f.read()
 	
 	def updateVocab(self, word) -> None:

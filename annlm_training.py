@@ -5,16 +5,16 @@ import torch.utils
 
 from language_modeling.models import AnnLanguageModel
 from language_modeling.utils import AnnLanguageModelDataset
-from pretrained_embeddings import loadPretrained
+from preprocessing_scripts.pretrained_embeddings import loadPretrained
 
 vocab, trainTokens, valTokens, testTokens = pkl.load(open("data/Auguste_Maquet/data_split.pkl", "rb"))
 
 modelHyperparams = {
 	"contextSizePrev": 5,
 	"contextSizeNext": 0,
-	"activation": "relu",
+	"activation": "tanh",
 	"droupout": 0.1,
-	"hiddenLayerSizes": [1024],
+	"hiddenLayerSizes": [512, 1024],
 	"fineTunePretrained": False
 }
 

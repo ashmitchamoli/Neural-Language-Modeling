@@ -19,8 +19,8 @@ def loadPretrained(path : str, vocab : bidict) -> torch.Tensor:
 	return out
 
 if __name__ == "__main__":
-	tokenizer = Tokenizer("data/Auguste_Maquet/Auguste_Maquet.txt")
+	tokenizer = Tokenizer("../data/Auguste_Maquet/Auguste_Maquet.txt")
 	tokens, vocabulary = tokenizer.getTokens()
 
 	w2vModel = Word2Vec(tokens, min_count=0, trim_rule=lambda a, b, c: RULE_KEEP, vector_size=512)
-	w2vModel.wv.save_word2vec_format("data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt", binary=False)
+	w2vModel.wv.save_word2vec_format("../data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt", binary=False)

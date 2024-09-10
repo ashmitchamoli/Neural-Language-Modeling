@@ -1,23 +1,20 @@
 import torch
-import gc
 from bidict import bidict
-from alive_progress import alive_bar as aliveBar
 
 from language_modeling import BaseLanguageModel
-from language_modeling.utils import LstmLanguageModelDataset
 from language_modeling.config import LSTM_MODEL_PATH
 
 class LstmLanguageModel(BaseLanguageModel):
 	def __init__(self, vocabulary : bidict, 
 			  	 pretrainedEmbeddings : torch.Tensor = None, 
-				 fineTunedPretrained : bool = False,
+				 fineTunePretrained : bool = False,
 				 hiddenEmbeddingSize : int = 512,
 				 numLayers : int = 2,
 				 dropout : float = 0.2,
 				 bidirectional : bool = False,
 				 activation : str = "tanh",
 				 linearClassifierLayers : list[int] | None = None) -> None:
-		super().__init__(vocabulary, pretrainedEmbeddings, fineTunedPretrained)
+		super().__init__(vocabulary, pretrainedEmbeddings, fineTunePretrained)
 
 		self.hiddenEmbeddingSize = hiddenEmbeddingSize
 		self.numLayers = numLayers
@@ -75,7 +72,7 @@ class LstmLanguageModel(BaseLanguageModel):
 		"""
 		:param x: batch of sentences (batchSize, maxSentenceLength) 
 		"""
-		x, _ = self.forward1(x[:, :-1]) # (batchSize, maxSentenceLength, vocabSize)
+		x, _ = self.forward1(x) # (batchSize, maxSentenceLength, vocabSize)
 
 		return x.view(-1, self.vocabSize), None
 
@@ -90,7 +87,7 @@ class LstmLanguageModel(BaseLanguageModel):
 		self.to(self.device)
 
 		# since x can be too large to load at once, we split it into batches
-		finalOutput = torch.zeros(x.shape[0], self.vocabSize)
+		finalOutput = torch.zeros(x.shape[0], self.vocabSize, device=self.device)
 		batchSize = 32
 		x = list(x.split(batchSize, dim=0))
 		for i in range(len(x)):
@@ -102,60 +99,3 @@ class LstmLanguageModel(BaseLanguageModel):
 			finalOutput[i * batchSize : (i + 1) * batchSize, :] = output
 
 		return torch.nn.Softmax(dim=1)(finalOutput)
-
-	# def train(self, valDataset : LstmLanguageModelDataset, 
-	# 		  epochs : int = 5, 
-	# 		  verbose : bool = True, 
-	# 		  batchSize : int = 64, 
-	# 		  learningRate : float = 0.005, 
-	# 		  retrain : bool = False,
-	# 		  optimizerType : Literal["adam", "sgd", "rmsprop"] = "adam") -> None:
-	# 	self.to(self.device)
-
-	# 	if not retrain:
-	# 		if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_)):
-	# 			if verbose:
-	# 				print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_)}")
-	# 			return
-	# 		else:
-	# 			if verbose:
-	# 				print(f"Model checkpoint not found. Training model from scratch...")
-		
-	# 	trainLoader = torch.utils.data.DataLoader(self.trainDataset, batch_size=batchSize, shuffle=True, collate_fn=self.trainDataset._customCollate_)
-	# 	optimizer = None
-	# 	if optimizerType == "adam":
-	# 		optimizer = torch.optim.Adam(self.parameters(), lr=learningRate)
-	# 	else:
-	# 		raise ValueError("Unknown optimizer.")
-		
-	# 	criterion = torch.nn.CrossEntropyLoss()
-
-	# 	for epoch in range(epochs):
-	# 		totalLoss = 0
-	# 		with aliveBar(len(trainLoader), title=f"Epoch {epoch}") as bar:
-	# 			for i, (x, y) in enumerate(trainLoader):
-	# 				x = x.to(self.device)
-	# 				y = y.to(self.device)
-
-	# 				optimizer.zero_grad()
-	# 				output = self(x[:, :-1])
-	# 				output = output.view(-1, self.vocabSize)
-	# 				y = y.view(-1)
-	# 				loss = criterion(output, y)
-	# 				loss.backward()
-	# 				optimizer.step()
-
-	# 				totalLoss += loss.item()
-	# 				bar.text(f"\nAvg Loss: {totalLoss/(i+1):.3f}")
-
-	# 				bar()
-			
-	# 		avgLoss = totalLoss / len(trainLoader)
-	# 		if verbose:	
-	# 			print(f"Epoch {epoch} completed. log(Perplexity): {avgLoss:.3f}")
-		
-	# 	self._saveModel_(os.path.join(self._modelSaveDir_, self._modelName_ + ".pth"))
-	# 	if verbose:
-	# 		print("Model saved.")
-
-	# 	return

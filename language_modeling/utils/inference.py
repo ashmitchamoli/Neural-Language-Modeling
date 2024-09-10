@@ -62,20 +62,8 @@ class Inferencer:
 				logSentenceProb = torch.log(probDist[torch.arange(len(tokenIndices)), tokenIndices]).sum()				
 				totalPerplexity += torch.exp(-logSentenceProb / len(sentence))
 
-				# del context
-				# del probDist
-				# del logSentenceProb
-				# del tokenIndices
-
-				# # garbage collection
-				# gc.collect()
-				# with torch.no_grad():
-				# 	torch.cuda.empty_cache()
-
 				bar()
 
-
-		
 		return totalPerplexity.item() / len(tokens)
 
 	def decodeNextWord(self, nextWordDistribution : torch.Tensor) -> int:

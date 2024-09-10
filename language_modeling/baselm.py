@@ -29,7 +29,7 @@ class BaseLanguageModel(torch.nn.Module):
 	def _getPretrainedEmbeddings_(self, indices : torch.Tensor) -> torch.Tensor:
 		if isinstance(self.pretrainedEmbeddings, torch.nn.Embedding):
 			return self.pretrainedEmbeddings(indices)
-		
+
 		return self.pretrainedEmbeddings[indices]
 	
 	def _saveModel_(self, path : str) -> None:
@@ -44,15 +44,20 @@ class BaseLanguageModel(torch.nn.Module):
 			return True
 		else:
 			return False
-		
+
+	def forward(self, x) -> tuple[torch.Tensor, torch.Tensor]:
+		pass
+
+	# pylint: disable=arguments-differ
 	def train(self, trainLoader : torch.utils.data.DataLoader, 
-		   	  valLoader : torch.utils.data.DataLoader = None,
+			  valLoader : torch.utils.data.DataLoader = None,
 			  epochs : int = 5, 
 			  verbose : bool = True, 
 			  batchSize : int = 64, 
 			  learningRate : float = 0.005, 
 			  retrain : bool = False,
-			  optimizerType : Literal["adam", "sgd", "rmsprop"] = "adam") -> None:
+			  optimizerType : Literal["adam", "sgd", "rmsprop"] = "adam",
+			  ignorePadding : int = None) -> None:
 		self.to(self.device)
 
 		if not retrain:
@@ -62,7 +67,7 @@ class BaseLanguageModel(torch.nn.Module):
 				return
 			else:
 				if verbose:
-					print(f"Model checkpoint not found. Training model from scratch...")
+					print("Model checkpoint not found. Training model from scratch...")
 
 		optimizer = None
 		if optimizerType == "adam":
@@ -70,7 +75,10 @@ class BaseLanguageModel(torch.nn.Module):
 		else:
 			raise ValueError("Unknown optimizer.")
 		
-		criterion = torch.nn.CrossEntropyLoss()
+		if ignorePadding is not None:
+			criterion = torch.nn.CrossEntropyLoss(ignore_index=ignorePadding)
+		else:
+			criterion = torch.nn.CrossEntropyLoss()
 
 		for epoch in range(epochs):
 			totalLoss = 0
@@ -96,7 +104,7 @@ class BaseLanguageModel(torch.nn.Module):
 				valLoss = 0
 				valAcc = 0
 				with torch.no_grad():
-					with aliveBar(len(valLoader), title=f"Validation") as bar:
+					with aliveBar(len(valLoader), title="Validation") as bar:
 						for x, y in valLoader:
 							x = x.to(self.device)
 							y = y.to(self.device)
@@ -106,6 +114,9 @@ class BaseLanguageModel(torch.nn.Module):
 
 							valLoss += loss.item()
 							preds = torch.argmax(output, dim=1)
+							if ignorePadding is not None:
+								preds = preds[y != ignorePadding]
+								y = y[y != ignorePadding]
 							valAcc += torch.sum(preds == y).item() / len(y)
 
 							bar()
@@ -122,14 +133,13 @@ class BaseLanguageModel(torch.nn.Module):
 		if verbose:
 			print("Model saved.")
 
-
 		return
-	
+
 	def loadModelWeights(self) -> None:
 		if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')):
 			print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')}")
 		else:
-			print(f"Model checkpoint not found. Train the model from scratch.")
+			print("Model checkpoint not found. Train the model from scratch.")
 
 	def getNextWordDistribution(self, x : torch.Tensor) -> torch.Tensor:
 		"""
@@ -139,5 +149,4 @@ class BaseLanguageModel(torch.nn.Module):
 			(batchSize, vocabSize) or (vocabSize, )
 			The probability distribution for the next word.
 		"""
-		pass
 	
