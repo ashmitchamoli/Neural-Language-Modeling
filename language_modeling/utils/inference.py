@@ -42,10 +42,14 @@ class Inferencer:
 		
 		return " ".join(context)
 
-	def computePerplexity(self, tokens : list[list[str]]) -> float:
+	def computePerplexity(self, tokens : list[list[str]], saveToFile : bool = False, filePath : str | None = None) -> float:
 		"""
 		Computes the perplexity of the given list of tokens.
 		"""
+		perpFile = None
+		if saveToFile:
+			perpFile = open(filePath, "w")
+
 		totalPerplexity = 0
 		with aliveBar(len(tokens)) as bar:
 			for sentence in tokens:
@@ -60,9 +64,17 @@ class Inferencer:
 				probDist = probDist.to("cpu")
 
 				logSentenceProb = torch.log(probDist[torch.arange(len(tokenIndices)), tokenIndices]).sum()				
-				totalPerplexity += torch.exp(-logSentenceProb / len(sentence))
+				sentencePerp = torch.exp(-logSentenceProb / len(sentence))
+				totalPerplexity += sentencePerp
+
+				if saveToFile:
+					perpFile.write(f"{' '.join(sentence)}\t{sentencePerp.item()}\n")
 
 				bar()
+
+		if saveToFile:
+			perpFile.write(f"Avg. Perplexity: {totalPerplexity.item() / len(tokens)}\n")
+			perpFile.close()
 
 		return totalPerplexity.item() / len(tokens)
 

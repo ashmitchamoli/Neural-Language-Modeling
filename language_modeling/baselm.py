@@ -1,7 +1,7 @@
 import torch
 import os
 from bidict import bidict
-from typing import Literal
+from typing import Literal, Optional
 from alive_progress import alive_bar as aliveBar
 
 class BaseLanguageModel(torch.nn.Module):
@@ -135,9 +135,14 @@ class BaseLanguageModel(torch.nn.Module):
 
 		return
 
-	def loadModelWeights(self) -> None:
-		if self._loadModel_(os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')):
-			print(f"Loaded model from {os.path.join(self._modelSaveDir_, self._modelName_ + '.pth')}")
+	def loadModelWeights(self, searchPath : Optional[str] = None) -> None:
+		searchDir = None
+		if searchPath is not None:
+			searchDir = os.path.join(searchPath, self._modelSaveDir_)
+		else:
+			searchDir = self._modelSaveDir_
+		if self._loadModel_(os.path.join(searchDir, self._modelName_ + '.pth')):
+			print(f"Loaded model from {os.path.join(searchDir, self._modelName_ + '.pth')}")
 		else:
 			print("Model checkpoint not found. Train the model from scratch.")
 

@@ -9,17 +9,17 @@ vocab, trainTokens, valTokens, testTokens = pkl.load(open("data/Auguste_Maquet/d
 
 modelHyperparams = {
 	"fineTunePretrained": False,
-	"numLayers": 1,
+	"numLayers": 2,
 	"nhead": 8,
 	"dimFeedforward": 2048,
 	"activation": "gelu",
-	"dropout": 0.0,
+	"dropout": 0.2,
 	"linearClassifierLayers": [1024]
 }
 
 trainingConfig = {
 	"batchSize": 64,
-	"learningRate": 1e-2,
+	"learningRate": 1e-3,
 	"epochs": 3,
 	"retrain": True
 }
