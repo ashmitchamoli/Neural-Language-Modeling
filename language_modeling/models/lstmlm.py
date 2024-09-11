@@ -80,22 +80,36 @@ class LstmLanguageModel(BaseLanguageModel):
 		"""
 		:param x: size (batchSize, context) or (context, ). `x` contains indices of context words.
 		"""
+		# if x.ndim == 1:
+		# 	# make x of shape (1, context)
+		# 	x = x.unsqueeze(0)
+
+		# self.to(self.device)
+
+		# # since x can be too large to load at once, we split it into batches
+		# finalOutput = torch.zeros(x.shape[0], self.vocabSize, device=self.device)
+		# batchSize = 32
+		# x = list(x.split(batchSize, dim=0))
+		# for i in range(len(x)):
+		# 	xi = x[i].to(self.device)
+
+		# 	with torch.no_grad():
+		# 		output = self.forward1(xi)[0][:, -1, :] # (batchSize, vocabSize)
+
+		# 	finalOutput[i * batchSize : (i + 1) * batchSize, :] = output
+
+		# return torch.nn.Softmax(dim=1)(finalOutput)
+		sentenceTokens = None
 		if x.ndim == 1:
-			# make x of shape (1, context)
-			x = x.unsqueeze(0)
+			sentenceTokens = x.unsqueeze(0) # (1, context)
+		else:
+			sentenceTokens = x[-1, :].unsqueeze(0) # (1, context)
 
 		self.to(self.device)
+		sentenceTokens = sentenceTokens.to(self.device)
 
-		# since x can be too large to load at once, we split it into batches
-		finalOutput = torch.zeros(x.shape[0], self.vocabSize, device=self.device)
-		batchSize = 32
-		x = list(x.split(batchSize, dim=0))
-		for i in range(len(x)):
-			xi = x[i].to(self.device)
+		with torch.no_grad():
+			output = self.forward1(sentenceTokens)[0] # (1, context, vocabSize)
 
-			with torch.no_grad():
-				output = self.forward1(xi)[0][:, -1, :] # (batchSize, vocabSize)
+		return torch.nn.Softmax(dim=1)(output.view(-1, self.vocabSize))
 
-			finalOutput[i * batchSize : (i + 1) * batchSize, :] = output
-
-		return torch.nn.Softmax(dim=1)(finalOutput)

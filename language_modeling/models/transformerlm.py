@@ -51,11 +51,21 @@ class TransformerLanguageModel(BaseLanguageModel):
 		self._modelSaveDir_ = TRANSFORMER_MODEL_PATH
 		self._modelName_ = f"transformerlm_{nhead}_{dimFeedforward}_{self.pretrainedEmbeddingSize}_{activation}_{dropout}_{linearClassifierLayers}"
 
-	def foward1(self, x : torch.Tensor) -> torch.Tensor:
+	def _getPositionalEncoding_(self, maxSequenceLength : int, embeddingSize : int, device : torch.device) -> torch.Tensor:
+		pe = torch.arange(0, maxSequenceLength).unsqueeze(1) # (maxSequenceLength, 1)
+		temp = torch.arange(0, embeddingSize).unsqueeze(0) # (1, embeddingSize)
+		pe = (pe / 10000 ** ((temp - temp%2) / embeddingSize)) # (maxSequenceLength, embeddingSize)
+		pe[:, 0::2] = torch.sin(pe[:, 0::2])
+		pe[:, 1::2] = torch.cos(pe[:, 1::2])
+
+		return pe.to(device)
+
+	def forward1(self, x : torch.Tensor) -> torch.Tensor:
 		"""
 		x is of shape (batchSize, maxSequenceLength)
 		"""
 		x = self._getPretrainedEmbeddings_(x) # (batchSize, maxSequenceLength, pretrainedEmbeddingSize)
+		x = x + self._getPositionalEncoding_(x.size(1), self.pretrainedEmbeddingSize, self.device)
 		
 		# masked attention
 		# causalMask is a square matrix with upper traiangle filled with -inf and lower triangle filled with 0 with diagonal also 0
@@ -70,18 +80,18 @@ class TransformerLanguageModel(BaseLanguageModel):
 		"""
 		# pick the last word embedding from each sequence. The last word will be the token just before the first <PAD> token
 		# find the index of the first PAD token in each sequence
-		firstPadIndices = torch.argmax((x == self.vocabulary[PAD_TOKEN]).int(), dim=1) # (batchSize,)
-		firstPadIndices = firstPadIndices + (firstPadIndices == 0)
+		# firstPadIndices = torch.argmax((x == self.vocabulary[PAD_TOKEN]).int(), dim=1) # (batchSize,)
+		# firstPadIndices = firstPadIndices + (firstPadIndices == 0)
 
-		x = self.foward1(x) # (batchSize, maxSequenceLength, pretrainedEmbeddingSize)
+		x = self.forward1(x) # (batchSize, maxSequenceLength, pretrainedEmbeddingSize)
 
 		# pick the last word embedding from each sequence
-		x = x[torch.arange(x.size(0)), firstPadIndices - 1, :] # (batchSize, pretrainedEmbeddingSize)
+		# x = x[torch.arange(x.size(0)), firstPadIndices - 1, :] # (batchSize, pretrainedEmbeddingSize)
 
 		# linear classifier
-		x = self.linear(x) # (batchSize, vocabSize)
+		x = self.linear(x) # (batchSize, maxSequenceLength, vocabSize)
 
-		return x, None
+		return x.view(-1, x.size(2)), None
 	
 	def getNextWordDistribution(self, x : torch.Tensor) -> torch.Tensor:
 		"""
@@ -91,27 +101,63 @@ class TransformerLanguageModel(BaseLanguageModel):
 			(batchSize, vocabSize) or (vocabSize, )
 			The probability distribution for the next word.
 		"""
-		self.to(self.device)
+		# # self.to(self.device)
+		# # if x.ndim == 1:
+		# # 	# make x of shape (1, context)
+		# # 	x = x.unsqueeze(0)
+		
+		# # # reverse each row in x
+		# # x = x.flip(1)
+
+		# # # since x might be too long, we need to split it into batches
+		# # finalOutput = torch.zeros(x.size(0), self.vocabSize, device=self.device)
+		# # batchSize = 32
+		# # x = list(x.split(batchSize, dim=0))
+		# # for i in range(len(x)):
+		# # 	xi = x[i].to(self.device) # (batchSize, context)
+
+		# # 	with torch.no_grad():
+		# # 		output = self(xi)[0] # (batchSize, vocabSize)
+
+		# # 	finalOutput[i * batchSize : (i + 1) * batchSize, :] = output
+		
+		# # if finalOutput.size(0) == 1:
+		# # 	return torch.nn.Softmax(dim=0)(finalOutput.squeeze(0))
+		
+		# # return torch.nn.Softmax(dim=1)(finalOutput)
+		# if x.ndim == 1:
+		# 	# make x of shape (1, context)
+		# 	x = x.unsqueeze(0)
+
+		# self.to(self.device)
+
+		# # since x can be too large to load at once, we split it into batches
+		# finalOutput = torch.zeros(x.shape[0], self.vocabSize, device=self.device)
+		# batchSize = 32
+		# x = list(x.split(batchSize, dim=0))
+		# for i in range(len(x)):
+		# 	xi = x[i].to(self.device)
+
+		# 	with torch.no_grad():
+		# 		output = self.linear(self.forward1(xi)[:, -1, :]) # (batchSize, vocabSize)
+
+		# 	finalOutput[i * batchSize : (i + 1) * batchSize, :] = output
+
+		# return torch.nn.Softmax(dim=1)(finalOutput)
+
+		# get the sentence
+		sentenceTokens = None
 		if x.ndim == 1:
-			# make x of shape (1, context)
-			x = x.unsqueeze(0)
-		
-		# reverse each row in x
-		x = x.flip(1)
+			sentenceTokens = x.unsqueeze(0) # (1, context)
+		else:
+			sentenceTokens = x[-1, :].unsqueeze(0) # (1, context)
 
-		# since x might be too long, we need to split it into batches
-		finalOutput = torch.zeros(x.size(0), self.vocabSize, device=self.device)
-		batchSize = 32
-		x = list(x.split(batchSize, dim=0))
-		for i in range(len(x)):
-			xi = x[i].to(self.device) # (batchSize, context)
+		self.to(self.device)
+		sentenceTokens = sentenceTokens.to(self.device)
 
-			with torch.no_grad():
-				output = self(xi)[0] # (batchSize, vocabSize)
+		with torch.no_grad():
+			# get the next word distribution
+			output = self.forward1(sentenceTokens) # (1, context, pretrainedEmbeddingSize)
+			output = self.linear(output) # (1, context, vocabSize)
 
-			finalOutput[i * batchSize : (i + 1) * batchSize, :] = output
-		
-		if finalOutput.size(0) == 1:
-			return torch.nn.Softmax(dim=0)(finalOutput.squeeze(0))
-		
-		return torch.nn.Softmax(dim=1)(finalOutput)
+		return torch.nn.Softmax(dim=1)(output.view(-1, self.vocabSize))

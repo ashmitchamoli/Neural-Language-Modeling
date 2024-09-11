@@ -11,8 +11,8 @@ if __name__ == "__main__":
 	model.loadModelWeights()
 
 	inferencer = Inferencer(model)
-	testPerplexity = inferencer.computePerplexity(testTokens)
+	testPerplexity = inferencer.computePerplexity(testTokens, True, "perplexity_scores/2021101114-transformerLM1-test-perplexity.txt")
 	print(f"Test perplexity: {testPerplexity}")
 
-	trainPerplexity = inferencer.computePerplexity(trainTokens)
+	trainPerplexity = inferencer.computePerplexity(trainTokens, True, "perplexity_scores/2021101114-transformerLM1-train-perplexity.txt")
 	print(f"Train perplexity: {trainPerplexity}")

@@ -38,7 +38,6 @@ class Inferencer:
 
 			print(context[-1], end=" ")
 			sys.stdout.flush()
-			
 		
 		return " ".join(context)
 
@@ -52,7 +51,7 @@ class Inferencer:
 
 		totalPerplexity = 0
 		with aliveBar(len(tokens)) as bar:
-			for sentence in tokens:
+			for i, sentence in enumerate(tokens):
 				logSentenceProb = 0
 				tokenIndices = self.getTokenIndices(sentence)
 
@@ -70,7 +69,12 @@ class Inferencer:
 				if saveToFile:
 					perpFile.write(f"{' '.join(sentence)}\t{sentencePerp.item()}\n")
 
+				bar.text(f"Avg. Perplexity: {(totalPerplexity.item() / (i+1)):.3f}")
 				bar()
+
+				with torch.no_grad():
+					# gc.collect()
+					torch.cuda.empty_cache()
 
 		if saveToFile:
 			perpFile.write(f"Avg. Perplexity: {totalPerplexity.item() / len(tokens)}\n")

@@ -21,10 +21,9 @@ modelHyperparams = {
 trainingConfig = {
 	"batchSize": 256,
 	"learningRate": 1e-5,
-	"epochs": 6,
+	"epochs": 4,
 	"retrain": True
 }
-
 
 if __name__ == "__main__":
 	pretrainedW2v = loadPretrained("data/Auguste_Maquet/auguste_maquet_pretrained_w2v.txt", vocab)

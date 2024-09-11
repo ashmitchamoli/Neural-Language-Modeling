@@ -90,7 +90,7 @@ class TransformerLanguageModelDataset(torch.utils.data.Dataset):
 		self.vocabulary = vocabulary
 		self.vocabSize = len(vocabulary)
 
-		self.dataset = self._prepareDataset_(tokens, vocabulary)
+		# self.dataset = self._prepareDataset_(tokens, vocabulary)
 	
 	@staticmethod
 	def _prepareDataset_(tokens : list[list[str]], vocabulary : bidict) -> torch.utils.data.Dataset:
@@ -104,14 +104,30 @@ class TransformerLanguageModelDataset(torch.utils.data.Dataset):
 		return dataset
 	
 	def __len__(self) -> int:
-		return len(self.dataset)
+		# return len(self.dataset)
+		return len(self.tokens)
 	
+	# def __getitem__(self, index : int) -> tuple[torch.Tensor, torch.Tensor]:
+	# 	return self.dataset[index]
+	
+	# def customCollate(self, batch : list[torch.Tensor]) -> torch.Tensor:
+		
+	# 	X, y = zip(*batch)
+
+	# 	X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
+		
+	# 	return X, torch.stack(y)
 	def __getitem__(self, index : int) -> tuple[torch.Tensor, torch.Tensor]:
-		return self.dataset[index]
-	
+		sentence = self.tokens[index]
+
+		encodedSentence = [self.vocabulary[word] for word in sentence]
+		
+		return torch.tensor(encodedSentence[:-1]), torch.tensor(encodedSentence[1:])
+
 	def customCollate(self, batch : list[torch.Tensor]) -> torch.Tensor:
 		X, y = zip(*batch)
 
 		X = torch.nn.utils.rnn.pad_sequence(X, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
-		
-		return X, torch.stack(y)
+		y = torch.nn.utils.rnn.pad_sequence(y, batch_first=True, padding_value=self.vocabulary[PAD_TOKEN])
+
+		return X, y.view(-1)
