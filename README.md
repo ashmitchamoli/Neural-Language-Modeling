@@ -29,6 +29,7 @@ In this library, code for 3 language models is provided:
 1. `AnnLanguageModel`
 2. `LstmLanguageModel`
 3. `TransformerLanguageModel`
+
 These classes are inherited from the `BaseLanguageModel` class and were implemented using pytorch.
 
 # How to run
